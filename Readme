@@ -1,7 +1,17 @@
-
+Build Steps:
+============
 kirkstone : repo init -u https://code.rdkcentral.com/r/rdkcmf/manifests  -b rdkb-2024q1-kirkstone -m rdkb-nosrc.xml
 
 repo sync -j `nproc` --no-clone-bundle --no-tags
 
 #Choose one platform to build
 MACHINE=filogic830-onewifi source meta-cmf-filogic/setup-environment-release && bitbake -kv rdk-generic-broadband-image
+
+
+Image Path:
+${HOMEPATH}/build-filogic830-onewifi/tmp/deploy/images/filogic830-onewifi
+
+Image files:
+rdkb-generic-broadband-image_rdkb-2024q1-kirkstone_20240829003429.bin.squashfs-xz
+rdk-generic-broadband-image-filogic830-onewifi-sysupgrade.bin
+
