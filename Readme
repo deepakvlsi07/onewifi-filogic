@@ -1,0 +1,7 @@
+
+kirkstone : repo init -u https://code.rdkcentral.com/r/rdkcmf/manifests  -b rdkb-2024q1-kirkstone -m rdkb-nosrc.xml
+
+repo sync -j `nproc` --no-clone-bundle --no-tags
+
+#Choose one platform to build
+MACHINE=filogic830-onewifi source meta-cmf-filogic/setup-environment-release && bitbake -kv rdk-generic-broadband-image
