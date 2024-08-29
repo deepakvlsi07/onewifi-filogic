@@ -1,0 +1,125 @@
+From 4534458007434bd32cf5275a4c974f415401ebee Mon Sep 17 00:00:00 2001
+From: "Allen.Ye" <allen.ye@mediatek.com>
+Date: Thu, 12 Jan 2023 14:11:04 +0800
+Subject: [PATCH] Add tdk utility functions
+
+---
+ .../agent/scripts/tdk_platform_utility.sh     | 74 ++++++++++++++++++-
+ 1 file changed, 70 insertions(+), 4 deletions(-)
+
+diff --git a/platform/turris/agent/scripts/tdk_platform_utility.sh b/platform/turris/agent/scripts/tdk_platform_utility.sh
+index fefc1947..ef8fbc84 100755
+--- a/platform/turris/agent/scripts/tdk_platform_utility.sh
++++ b/platform/turris/agent/scripts/tdk_platform_utility.sh
+@@ -37,17 +37,104 @@ getCMMACAddress()
+     echo $macaddress
+ }
+ 
++if [ -e /etc/wireless/l1profile.dat ];
++then
++	AP0_INF=ra0
++	AP1_INF=rai0
++else
++	AP0_INF=wifi0
++	AP1_INF=wifi1
++fi
++
++getAp0DTIMInterval()
++{
++     hostapd_cli -i $AP0_INF status| grep -i ^dtim | cut -d '=' -f2
++}
++
++getAp1DTIMInterval()
++{
++     hostapd_cli -i $AP1_INF status| grep -i ^dtim | cut -d '=' -f2
++}
++
++getAp0BeaconInterval()
++{
++     hostapd_cli -i $AP0_INF status | grep ^beacon_int | cut -d '=' -f2
++}
++
++getAp1BeaconInterval()
++{
++     hostapd_cli -i $AP1_INF status | grep ^beacon_int | cut -d '=' -f2
++}
++
++getRadio0ObssCoexistenceEnable()
++{
++ if [ -e /etc/wireless/mediatek/mt7990.b0.dat ]; then
++ 	cat /etc/wireless/mediatek/mt7990.b0.dat | grep ^HT_BSSCoexistence | cut -d '=' -f2
++ elif [ -e /etc/wireless/mediatek/mt7992.b0.dat ]; then
++ 	cat /etc/wireless/mediatek/mt7992.b0.dat | grep ^HT_BSSCoexistence | cut -d '=' -f2
++ else
++	cat /nvram/hostapd0.conf | grep ^ht_coex | cut -d '=' -f2
++ fi
++}
++
++getRadio1ObssCoexistenceEnable()
++{
++ if [ -e /etc/wireless/mediatek/mt7990.b1.dat ]; then
++ 	cat /etc/wireless/mediatek/mt7990.b1.dat | grep ^HT_BSSCoexistence | cut -d '=' -f2
++ elif [ -e /etc/wireless/mediatek/mt7992.b1.dat ]; then
++ 	cat /etc/wireless/mediatek/mt7992.b1.dat | grep ^HT_BSSCoexistence | cut -d '=' -f2
++ else
++	cat /nvram/hostapd1.conf | grep ^ht_coex | cut -d '=' -f2
++ fi
++}
++
++getAP0ScanFilter()
++{
++    essid=`cat /tmp/essid0.txt | head -n1 | tr -d '\n'`
++    echo -n "gscanfilter: $essid"
++}
++
++getAP1ScanFilter()
++{
++    essid=`cat /tmp/essid1.txt | head -n1 | tr -d '\n'`
++    echo -n "gscanfilter: $essid"
++}
++
++getAP2ScanFilter()
++{
++    essid=`cat /tmp/essid2.txt | head -n1 | tr -d '\n'`
++    echo -n "gscanfilter: $essid"
++}
++
+ # Store the arguments to a variable
+ event=$1
+ processName=$2
+ 
+ # Invoke the function based on the argument passed
+ case $event in
+-   "checkProcess")
++     "checkProcess")
+         checkProcess;;
+-   "killProcess")
++     "killProcess")
+         killProcess;;
+-   "getCMMACAddress")
++     "getCMMACAddress")
+         getCMMACAddress;;
+-   *) echo "Invalid Argument passed";;
++     "getAp0DTIMInterval")
++        getAp0DTIMInterval;;
++     "getAp1DTIMInterval")
++        getAp1DTIMInterval;;
++     "getAp0BeaconInterval")
++        getAp0BeaconInterval;;
++     "getAp1BeaconInterval")
++        getAp1BeaconInterval;;
++     "getRadio0ObssCoexistenceEnable")
++        getRadio0ObssCoexistenceEnable;;
++     "getRadio1ObssCoexistenceEnable")
++        getRadio1ObssCoexistenceEnable;;
++     "getAP0ScanFilter")
++        getAP0ScanFilter;;
++     "getAP1ScanFilter")
++        getAP1ScanFilter;;
++     "getAP2ScanFilter")
++        getAP2ScanFilter;;
++     *) echo "Invalid Argument passed";;
+ esac
+-- 
+2.18.0
+

@@ -1,0 +1,147 @@
+# If not stated otherwise in this file or this component's LICENSE
+# file the following copyright and licenses apply:
+#
+#Copyright [2019] [RDK Management]
+#
+#Licensed under the Apache License, Version 2.0 (the "License");
+#you may not use this file except in compliance with the License.
+#You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+#Unless required by applicable law or agreed to in writing, software
+#distributed under the License is distributed on an "AS IS" BASIS,
+#WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#See the License for the specific language governing permissions and
+#limitations under the License.
+
+#!/usr/bin/env bash
+
+unset _RDK_FLAVOR
+
+TOP_DIR=$(pwd)
+export RDK_BSP_LAYER=none
+
+# default BSP layer is meta-filogic for filogic series board
+export RDK_BSP_LAYER=meta-cmf-filogic
+
+source meta-cmf/setup-environment $1
+if [ $? -ne 0 ]; then
+    return 1
+fi
+
+# at this point the current directory should be the build dir
+BUILD_DIR=$(pwd)
+_RDK_FLAVOR="rdkb"
+
+if [[ -z $(grep 'meta-cmf-filogic' conf/bblayers.conf) ]] && [[ -d  ../meta-cmf-filogic ]]
+then
+    cat >> conf/bblayers.conf <<EOF
+BBLAYERS =+ "\${RDKROOT}/meta-cmf-filogic"
+EOF
+fi
+
+if [[ $(grep '^BBLAYERS' conf/bblayers.conf | grep -c 'meta-filogic') -eq 0 ]] && [[ -d  ../meta-filogic ]]
+then
+    cat >> conf/bblayers.conf <<EOF
+BBLAYERS =+ "\${RDKROOT}/meta-filogic"
+EOF
+fi
+
+if [[ $(grep '^BBLAYERS' conf/bblayers.conf | grep -c 'meta-filogic-logan') -eq 0 ]] && [[ -d  ../meta-filogic-logan ]]
+then
+    cat >> conf/bblayers.conf <<EOF
+BBLAYERS =+ "\${RDKROOT}/meta-filogic-logan"
+EOF
+fi
+
+if [[ -d  ../meta-filogic-logan ]] && [[ ! -d  ../meta-filogic-logan/recipes-wifi/hostapd/files/patches ]]
+then
+	sh ../meta-cmf-filogic/mtk_scripts/sync_hostapd_patch.sh hostapd
+fi
+
+if [[ -d  ../meta-filogic-logan ]] && [[ ! -d  ../meta-filogic-logan/recipes-wifi/wpa-supplicant/files/patches ]]
+then
+	sh ../meta-cmf-filogic/mtk_scripts/sync_hostapd_patch.sh wpa_supplicant
+fi
+
+# Add meta-rdk-wan only if not already present.
+if [ $(grep '^BBLAYERS' conf/bblayers.conf | grep -c 'meta-rdk-wan') -eq 0 -a -d  $TOP_DIR/meta-rdk-wan ]
+then
+    cat >> conf/bblayers.conf <<EOF
+BBLAYERS =+ "\${RDKROOT}/meta-rdk-wan"
+EOF
+fi
+
+# Add meta-rdk-opensync only if not already present.
+if [[ $(grep '^BBLAYERS' conf/bblayers.conf | grep -c 'meta-rdk-opensync') -eq 0 ]] && [[ -d  ../meta-rdk-opensync ]]
+then
+    echo 'LAYERSERIES_COMPAT_opensync = "dunfell kirkstone"' >> ../meta-rdk-opensync/conf/layer.conf
+    cat >> conf/bblayers.conf <<EOF
+BBLAYERS =+ "\${RDKROOT}/meta-rdk-opensync"
+EOF
+fi
+
+# Add meta-amx(prplmesh used) only if not already present.
+if [[ $(grep '^BBLAYERS' conf/bblayers.conf | grep -c 'meta-amx') -eq 0 ]] && [[ -d  ../meta-amx ]]
+then
+    cat >> conf/bblayers.conf <<EOF
+BBLAYERS =+ "\${RDKROOT}/meta-amx"
+EOF
+fi
+# Add meta-prplmesh only if not already present.
+if [[ $(grep '^BBLAYERS' conf/bblayers.conf | grep -c 'meta-prplmesh') -eq 0 ]] && [[ -d  ../meta-prplmesh ]]
+then
+    cat >> conf/bblayers.conf <<EOF
+BBLAYERS =+ "\${RDKROOT}/meta-prplmesh"
+EOF
+fi
+
+if [ -L ${TOP_DIR}/.repo/manifest.xml ] ; then
+    MANIFEST="$(basename `readlink -f ${TOP_DIR}/.repo/manifest.xml` .xml)"
+else
+    MANIFEST=$(grep include ${TOP_DIR}/.repo/manifest.xml | cut -d '"' -f 2 | xargs basename -s .xml )
+fi
+echo "Manifest Name = ${MANIFEST}.xml"
+if [ -f "${TOP_DIR}/.repo/manifests/turris-tags/${MANIFEST}.conf" ]; then
+    cat ${TOP_DIR}/.repo/manifests/turris-tags/${MANIFEST}.conf >> $BUILD_DIR/conf/auto.conf
+    if [ $? == 0 ]; then
+        echo "${MANIFEST}.conf copied to auto.conf successfully"
+    else
+        echo "FAILED to copy auto.conf"
+    fi
+fi
+
+
+case "$(sed -n 's/^__version__ = "\(.*\)"/\1/p' ${TOP_DIR}/openembedded-core/bitbake/bin/bitbake)"
+in
+    2.0.*) YOCTO_CODENAME="kirkstone" ;;
+    2.2.*) YOCTO_CODENAME="kirkstone" ;;
+    1.46.*) YOCTO_CODENAME="dunfell" ;;
+    1.37.*|1.38.*) YOCTO_CODENAME="sumo" ;;
+    1.35.*|1.36.*) YOCTO_CODENAME="rocko" ;;
+    1.34.*) YOCTO_CODENAME="pyro" ;;
+    1.32.*) YOCTO_CODENAME="morty" ;;
+    1.30.*) YOCTO_CODENAME="krogoth" ;;
+    *)      YOCTO_CODENAME="daisy" ;;
+esac
+
+if [ $(grep -c 'tune-cortexa53' $TOP_DIR/meta-filogic/conf/machine/filogic.conf) -eq 0 ]; then
+    if [ ${YOCTO_CODENAME} == "kirkstone" ]; then
+        echo "${YOCTO_CODENAME} tune-cortexa53.inc"
+        echo "require conf/machine/include/arm/armv8a/tune-cortexa53.inc" >> $TOP_DIR/meta-filogic/conf/machine/filogic.conf
+    else
+        echo "${YOCTO_CODENAME} tune-cortexa53.inc"
+        echo "require conf/machine/include/tune-cortexa53.inc" >> $TOP_DIR/meta-filogic/conf/machine/filogic.conf
+    fi
+fi
+
+if [ $(grep -c 'whitelist' $TOP_DIR/meta-cmf-filogic/conf/distro/include/rdk-filogic.inc) -eq 0 ]; then
+    if [ ${YOCTO_CODENAME} == "kirkstone" ]; then
+        echo "${YOCTO_CODENAME} whitelist.inc"
+        echo "require conf/distro/include/whitelist_kirkstone.inc" >> $TOP_DIR/meta-cmf-filogic/conf/distro/include/rdk-filogic.inc
+    else
+        echo "${YOCTO_CODENAME} whitelist.inc"
+        echo "require conf/distro/include/whitelist_dunfell.inc" >> $TOP_DIR/meta-cmf-filogic/conf/distro/include/rdk-filogic.inc
+    fi
+fi
